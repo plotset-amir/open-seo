@@ -18,6 +18,9 @@ declare namespace Cloudflare {
 
     AUTH_MODE?: "cloudflare_access" | "local_noauth" | "hosted";
     BYPASS_EMAIL_VERIFICATION?: string;
+    // Comma-separated signup allowlist for hosted mode (see
+    // auth-signup-allowlist.ts). Only meaningful on self-hosted deployments.
+    ALLOWED_EMAILS?: string;
     TEAM_DOMAIN?: string;
     POLICY_AUD?: string;
     POSTHOG_PUBLIC_KEY?: string;

@@ -13,6 +13,7 @@ import { getDatabaseProvider } from "@/db/provider";
 import { z } from "zod";
 import { isHostedAuthMode } from "@/lib/auth-mode";
 import { createApiKeyPlugin } from "@/lib/auth-api-key";
+import { isAllowedSignupEmail } from "@/lib/auth-signup-allowlist";
 import { createBaseAuthConfig } from "@/lib/auth-config";
 import {
   getHostedTurnstileSecretKey,
@@ -112,18 +113,41 @@ function createAuth() {
     databaseHooks: {
       user: {
         create: {
-          // Hosted only: keep cheap mass-signups off the free plan by rejecting
-          // throwaway-inbox domains before the user row is created. Self-hosted
-          // has no shared credit pool to protect, so it's left untouched.
+          // Hosted only. Two gates, both before the user row is created:
+          //
+          // 1. ALLOWED_EMAILS — the self-host allowlist. Hosted is the
+          //    public-SaaS mode (emailAndPassword.disableSignUp is false and
+          //    Google social login is on), so a self-hosted deployment running
+          //    it accepts anyone who finds the URL, and DATAFORSEO_API_KEY is a
+          //    single instance-wide key — every stranger spends the operator's
+          //    balance. This hook is the one chokepoint both signup paths
+          //    (email/password and Google) pass through, so one check covers
+          //    both. Deliberately fail-closed: an unset var, or one that never
+          //    reached the runtime (Docker needs
+          //    CLOUDFLARE_INCLUDE_PROCESS_ENV=true for env to reach the
+          //    cloudflare:workers bindings), blocks signup instead of silently
+          //    reopening it. Existing accounts are unaffected — this only runs
+          //    on create.
+          //
+          // 2. Disposable domains — keeps cheap mass-signups off the free plan.
+          //    Self-hosted has no shared credit pool to protect, so it (like
+          //    the allowlist) is left untouched outside hosted mode.
           before: async (user) => {
-            if (
-              isHostedAuthMode(env.AUTH_MODE) &&
-              isDisposableEmailDomain(user.email)
-            ) {
-              throw new APIError("BAD_REQUEST", {
-                message: "Please sign up with a non-disposable email address.",
-              });
+            if (isHostedAuthMode(env.AUTH_MODE)) {
+              if (!isAllowedSignupEmail(env, user.email)) {
+                throw new APIError("FORBIDDEN", {
+                  message: "This OpenSEO instance is invite-only.",
+                });
+              }
+
+              if (isDisposableEmailDomain(user.email)) {
+                throw new APIError("BAD_REQUEST", {
+                  message:
+                    "Please sign up with a non-disposable email address.",
+                });
+              }
             }
+
             return { data: user };
           },
           after: async (user) => {
