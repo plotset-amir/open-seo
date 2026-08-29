@@ -124,7 +124,7 @@ function checkAuthMode(env: EnvRecord, items: PreflightItem[]): void {
       return;
     }
 
-    // Fail-closed by design (auth-signup-allowlist.ts), but silently: signup
+    // Fail-closed by design (auth-allowlist.ts), but silently: signup
     // just rejects everyone. Say so at boot instead of at the first attempt.
     if (!get(env, "ALLOWED_EMAILS")) {
       items.push({

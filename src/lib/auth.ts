@@ -10,10 +10,13 @@ import { d1Db } from "@/db/d1/client";
 import { pgDb } from "@/db/pg/client";
 import * as pgSchema from "@/db/pg/schema";
 import { getDatabaseProvider } from "@/db/provider";
+import { db } from "@/db";
+import { user as userTable } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { isHostedAuthMode } from "@/lib/auth-mode";
 import { createApiKeyPlugin } from "@/lib/auth-api-key";
-import { isAllowedSignupEmail } from "@/lib/auth-signup-allowlist";
+import { isAllowedHostedEmail } from "@/lib/auth-allowlist";
 import { createBaseAuthConfig } from "@/lib/auth-config";
 import {
   getHostedTurnstileSecretKey,
@@ -123,23 +126,17 @@ function createAuth() {
           //    single instance-wide key — every stranger spends the operator's
           //    balance. This hook is the one chokepoint both signup paths
           //    (email/password and Google) pass through, so one check covers
-          //    both. Deliberately fail-closed: an unset var, or one that never
-          //    reached the runtime (Docker needs
-          //    CLOUDFLARE_INCLUDE_PROCESS_ENV=true for env to reach the
-          //    cloudflare:workers bindings), blocks signup instead of silently
-          //    reopening it. Existing accounts are unaffected — this only runs
-          //    on create.
+          //    both. It is only the first of three: the session hook below and
+          //    resolveHostedContext re-check, because an account created while
+          //    the instance was open must lose access, not just be unable to
+          //    register again.
           //
           // 2. Disposable domains — keeps cheap mass-signups off the free plan.
           //    Self-hosted has no shared credit pool to protect, so it (like
           //    the allowlist) is left untouched outside hosted mode.
           before: async (user) => {
             if (isHostedAuthMode(env.AUTH_MODE)) {
-              if (!isAllowedSignupEmail(env, user.email)) {
-                throw new APIError("FORBIDDEN", {
-                  message: "This OpenSEO instance is invite-only.",
-                });
-              }
+              assertAllowedHostedEmail(user.email);
 
               if (isDisposableEmailDomain(user.email)) {
                 throw new APIError("BAD_REQUEST", {
@@ -159,6 +156,14 @@ function createAuth() {
       session: {
         create: {
           before: async (session) => {
+            // The user hook only guards account creation. Every stranger who
+            // registered before the allowlist existed still holds an account,
+            // and sign-in is where they come back — so re-check here, where a
+            // rejection surfaces as a clean error on the login form.
+            if (isHostedAuthMode(env.AUTH_MODE)) {
+              assertAllowedHostedEmail(await getUserEmail(session.userId));
+            }
+
             // Inject Better Auth's createOrganization here so the helper can
             // stay reusable without importing auth.ts and creating a cycle.
             const organizationId = await getOrCreateDefaultHostedOrganization(
@@ -182,6 +187,25 @@ function createAuth() {
 }
 
 let authInstance: ReturnType<typeof createAuth> | null = null;
+
+// Hosted only — callers check the mode. Throws the same FORBIDDEN for an
+// unlisted address and for an unset list (auth-allowlist.ts fails closed).
+export function assertAllowedHostedEmail(email: string | null | undefined) {
+  if (!email || !isAllowedHostedEmail(env, email)) {
+    throw new APIError("FORBIDDEN", {
+      message: "This OpenSEO instance is invite-only.",
+    });
+  }
+}
+
+async function getUserEmail(userId: string) {
+  const row = await db.query.user.findFirst({
+    columns: { email: true },
+    where: eq(userTable.id, userId),
+  });
+
+  return row?.email;
+}
 
 async function syncHostedSignupContact(user: {
   id: string;
