@@ -1,0 +1,41 @@
+# Dokploy deployment (Compose type, sourceType git, composePath compose.dokploy.yaml).
+# Docs: docs/SELF_HOSTING_DOKPLOY.md
+#
+# Differs from compose.yaml in the three things a PaaS changes:
+#   - builds from the cloned repo instead of pulling the published image, so a
+#     fork's own code actually runs;
+#   - `expose` instead of a 127.0.0.1 port bind — Traefik reaches the container
+#     over dokploy-network, and a published port would bypass it;
+#   - every setting comes from the Environment tab, which Dokploy writes to .env
+#     beside this file.
+services:
+  open-seo:
+    build:
+      context: .
+      dockerfile: Dockerfile.selfhost
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Required: without it Compose env never reaches the cloudflare:workers
+      # bindings the app reads, and every setting below silently reads as unset.
+      - CLOUDFLARE_INCLUDE_PROCESS_ENV=true
+      - PORT=3001
+      # Must equal the domain you attach in Dokploy, or vite preview answers
+      # every proxied request with "Blocked request".
+      - ALLOWED_HOST=${ALLOWED_HOST}
+      - AUTH_MODE=${AUTH_MODE:-hosted}
+      - VITE_SHOW_DEVTOOLS=false
+    expose:
+      - "3001"
+    networks:
+      - dokploy-network
+    volumes:
+      # The D1 database lives here. A named volume (not a bind mount) so it
+      # survives redeploys and Dokploy's volume backups can see it.
+      - open_seo_data:/app/.wrangler
+volumes:
+  open_seo_data:
+networks:
+  dokploy-network:
+    external: true

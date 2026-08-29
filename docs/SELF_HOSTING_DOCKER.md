@@ -8,6 +8,10 @@ The default `compose.yaml` uses the published GHCR image:
 
 - `ghcr.io/every-app/open-seo:latest`
 
+Deploying through Dokploy instead? See
+[`SELF_HOSTING_DOKPLOY.md`](./SELF_HOSTING_DOKPLOY.md) — it needs its own compose
+file, because this one binds the port to localhost and pulls the published image.
+
 ## Prerequisites
 
 - Docker Desktop (or Docker Engine + Docker Compose)
