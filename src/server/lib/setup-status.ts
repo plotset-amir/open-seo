@@ -28,7 +28,21 @@ const CHECK_ENV_VARS = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
   "BETTER_AUTH_SECRET",
+  "BETTER_AUTH_URL",
   "OPENROUTER_API_KEY",
+  // Auth-mode inputs: without these the shared checks read them as unset and
+  // report a healthy instance that the boot preflight would have failed.
+  // Presence only — the messages never echo a value, and this endpoint is
+  // unauthenticated.
+  "ALLOWED_HOST",
+  "ALLOW_PUBLIC_NOAUTH",
+  "ALLOWED_EMAILS",
+  "BYPASS_EMAIL_VERIFICATION",
+  "LOOPS_API_KEY",
+  "LOOPS_TRANSACTIONAL_VERIFY_EMAIL_ID",
+  "LOOPS_TRANSACTIONAL_RESET_PASSWORD_ID",
+  "TURNSTILE_SITE_KEY",
+  "TURNSTILE_SECRET_KEY",
 ] as const;
 
 const LEVEL_TO_STATUS = {

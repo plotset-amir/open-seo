@@ -1,5 +1,8 @@
 import { AUTH_MODES } from "@/lib/auth-mode";
+import { hasHostedTurnstileConfig } from "@/lib/auth-turnstile";
 import {
+  hasHostedEmailConfig,
+  HOSTED_EMAIL_ENV_VARS,
   looksLikeDataForSeoKey,
   MIN_BETTER_AUTH_SECRET_LENGTH,
   validateTeamDomain,
@@ -48,6 +51,27 @@ function checkAuthMode(env: EnvRecord, items: PreflightItem[]): void {
   const mode = rawMode ?? "cloudflare_access";
 
   if (mode === "local_noauth") {
+    // local_noauth has no login at all: every request resolves to the same
+    // admin user, so anyone who can reach the URL owns the projects and spends
+    // the instance-wide DATAFORSEO_API_KEY balance. The container only binds
+    // 127.0.0.1, so reaching it from elsewhere means a reverse proxy or tunnel
+    // — which needs ALLOWED_HOST, making that var the one honest signal that
+    // this instance is no longer localhost-only. A private proxy is a fair
+    // setup, so it stays possible; it just has to be stated.
+    if (
+      get(env, "ALLOWED_HOST") &&
+      get(env, "ALLOW_PUBLIC_NOAUTH") !== "true"
+    ) {
+      items.push({
+        key: "auth",
+        name: "AUTH_MODE",
+        level: "fail",
+        message:
+          "local_noauth has no login — with ALLOWED_HOST set, this instance is served over a hostname, so anyone who finds it becomes the admin user and spends your DataForSEO balance. Set AUTH_MODE=hosted (with ALLOWED_EMAILS) or AUTH_MODE=cloudflare_access, or set ALLOW_PUBLIC_NOAUTH=true if that hostname is only reachable from a private network.",
+      });
+      return;
+    }
+
     items.push({
       key: "auth",
       name: "AUTH_MODE",
@@ -65,16 +89,60 @@ function checkAuthMode(env: EnvRecord, items: PreflightItem[]): void {
       "GOOGLE_CLIENT_ID",
       "GOOGLE_CLIENT_SECRET",
     ].filter((name) => !get(env, name));
-    items.push(
-      missing.length
-        ? {
-            key: "auth",
-            name: "AUTH_MODE",
-            level: "fail",
-            message: `hosted mode requires ${missing.join(", ")}.`,
-          }
-        : { key: "auth", name: "AUTH_MODE", level: "ok", message: "hosted" },
-    );
+
+    if (missing.length) {
+      items.push({
+        key: "auth",
+        name: "AUTH_MODE",
+        level: "fail",
+        message: `hosted mode requires ${missing.join(", ")}.`,
+      });
+      return;
+    }
+
+    // The next two mirror hasHostedAuthConfig(): fail them here, at boot, with
+    // the fix — otherwise the app starts fine and every /api/auth request
+    // answers 500 "Missing Better Auth hosted configuration".
+    if (!hasHostedEmailConfig(env)) {
+      items.push({
+        key: "auth",
+        name: "AUTH_MODE",
+        level: "fail",
+        message: `hosted mode sends verification and password-reset email through Loops: set ${HOSTED_EMAIL_ENV_VARS.join(", ")} — or BYPASS_EMAIL_VERIFICATION=true to skip email verification entirely on an invite-only instance.`,
+      });
+      return;
+    }
+
+    if (!hasHostedTurnstileConfig(env)) {
+      items.push({
+        key: "auth",
+        name: "AUTH_MODE",
+        level: "fail",
+        message:
+          "TURNSTILE_SITE_KEY is set without TURNSTILE_SECRET_KEY — the signup captcha would render but never be verified. Set the secret, or unset the site key to drop the captcha.",
+      });
+      return;
+    }
+
+    // Fail-closed by design (auth-signup-allowlist.ts), but silently: signup
+    // just rejects everyone. Say so at boot instead of at the first attempt.
+    if (!get(env, "ALLOWED_EMAILS")) {
+      items.push({
+        key: "auth",
+        name: "AUTH_MODE",
+        level: "warn",
+        message:
+          "hosted, but ALLOWED_EMAILS is unset — nobody can create an account. List the addresses allowed to sign up. Existing accounts still work.",
+      });
+      return;
+    }
+
+    items.push({
+      key: "auth",
+      name: "AUTH_MODE",
+      level: "ok",
+      message: "hosted",
+    });
     return;
   }
 

@@ -21,6 +21,9 @@ declare namespace Cloudflare {
     // Comma-separated signup allowlist for hosted mode (see
     // auth-signup-allowlist.ts). Only meaningful on self-hosted deployments.
     ALLOWED_EMAILS?: string;
+    // "true" acknowledges a login-less (local_noauth) instance served over a
+    // hostname; see selfhost-preflight.ts. Only read by the config checks.
+    ALLOW_PUBLIC_NOAUTH?: string;
     TEAM_DOMAIN?: string;
     POLICY_AUD?: string;
     POSTHOG_PUBLIC_KEY?: string;

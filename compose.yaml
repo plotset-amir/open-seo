@@ -15,7 +15,15 @@ services:
       - CLOUDFLARE_INCLUDE_PROCESS_ENV=true
       - PORT=${PORT:-3001}
       - ALLOWED_HOST=${ALLOWED_HOST:-}
-      - AUTH_MODE=local_noauth
+      # Defaults to the no-auth single-admin mode for a localhost-only box, but
+      # stays settable from .env: pinning it here silently overrode AUTH_MODE=hosted
+      # (or =cloudflare_access) in .env, so an instance put behind a public
+      # hostname kept serving with no login at all.
+      - AUTH_MODE=${AUTH_MODE:-local_noauth}
+      # Only meaningful with AUTH_MODE=local_noauth + ALLOWED_HOST: asserts that
+      # the hostname is private, otherwise the boot preflight refuses to start a
+      # login-less instance that is served over a hostname.
+      - ALLOW_PUBLIC_NOAUTH=${ALLOW_PUBLIC_NOAUTH:-}
       - OPENSEO_TELEMETRY_DISABLED=${OPENSEO_TELEMETRY_DISABLED:-}
       - DO_NOT_TRACK=${DO_NOT_TRACK:-}
       - DATAFORSEO_API_KEY=${DATAFORSEO_API_KEY}

@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { runSelfhostPreflight } from "./selfhost-preflight";
 
+function hostedEnv() {
+  return {
+    AUTH_MODE: "hosted",
+    BETTER_AUTH_URL: "https://seo.example.com",
+    BETTER_AUTH_SECRET: "x".repeat(40),
+    GOOGLE_CLIENT_ID: "id",
+    GOOGLE_CLIENT_SECRET: "secret",
+  };
+}
+
 function itemFor(
   result: ReturnType<typeof runSelfhostPreflight>,
   name: string,
@@ -83,6 +93,61 @@ describe("runSelfhostPreflight", () => {
     expect(item?.message).toContain("BETTER_AUTH_URL");
     expect(item?.message).toContain("GOOGLE_CLIENT_ID");
     expect(item?.message).not.toContain("BETTER_AUTH_SECRET,");
+  });
+
+  it("fails hosted mode with no way to verify an address", () => {
+    // Otherwise boot succeeds and every /api/auth request answers 500.
+    const result = runSelfhostPreflight({ ...hostedEnv() });
+
+    expect(result.failed).toBe(true);
+    expect(itemFor(result, "AUTH_MODE")?.message).toContain("LOOPS_API_KEY");
+  });
+
+  it("warns that hosted mode without ALLOWED_EMAILS lets nobody sign up", () => {
+    const result = runSelfhostPreflight({
+      ...hostedEnv(),
+      BYPASS_EMAIL_VERIFICATION: "true",
+    });
+
+    expect(result.failed).toBe(false);
+    expect(itemFor(result, "AUTH_MODE")?.level).toBe("warn");
+    expect(itemFor(result, "AUTH_MODE")?.message).toContain("ALLOWED_EMAILS");
+  });
+
+  it("passes hosted mode that is fully configured", () => {
+    const result = runSelfhostPreflight({
+      ...hostedEnv(),
+      BYPASS_EMAIL_VERIFICATION: "true",
+      ALLOWED_EMAILS: "owner@example.com",
+    });
+
+    expect(result.failed).toBe(false);
+    expect(itemFor(result, "AUTH_MODE")?.level).toBe("ok");
+  });
+
+  it("fails a login-less instance that is served over a hostname", () => {
+    // The bug this guard exists for: local_noauth behind a public hostname
+    // means every visitor is the admin user, spending the DataForSEO balance.
+    const result = runSelfhostPreflight({
+      AUTH_MODE: "local_noauth",
+      ALLOWED_HOST: "seo.example.com",
+    });
+
+    expect(result.failed).toBe(true);
+    expect(itemFor(result, "AUTH_MODE")?.message).toContain(
+      "ALLOW_PUBLIC_NOAUTH=true",
+    );
+  });
+
+  it("allows a login-less hostname the operator states is private", () => {
+    const result = runSelfhostPreflight({
+      AUTH_MODE: "local_noauth",
+      ALLOWED_HOST: "seo.internal",
+      ALLOW_PUBLIC_NOAUTH: "true",
+    });
+
+    expect(result.failed).toBe(false);
+    expect(itemFor(result, "AUTH_MODE")?.level).toBe("ok");
   });
 
   it("mentions ALLOWED_HOST when unset", () => {

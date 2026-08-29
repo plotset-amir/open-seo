@@ -51,3 +51,31 @@ export function isTelemetryOptOutValue(
   if (!value) return false;
   return !["0", "false", "no", "off"].includes(value.trim().toLowerCase());
 }
+
+// Hosted mode sends verification and password-reset mail through Loops, so all
+// three ids are required — unless the operator opts out of verification with
+// BYPASS_EMAIL_VERIFICATION=true (fine on an invite-only instance where
+// ALLOWED_EMAILS already decides who may register). Without one of the two,
+// hasHostedAuthConfig() refuses to serve /api/auth at all, so the preflight and
+// the runtime must apply the same rule or a self-hoster passes boot and then
+// gets a 500 on the first sign-in.
+export const HOSTED_EMAIL_ENV_VARS = [
+  "LOOPS_API_KEY",
+  "LOOPS_TRANSACTIONAL_VERIFY_EMAIL_ID",
+  "LOOPS_TRANSACTIONAL_RESET_PASSWORD_ID",
+] as const;
+
+type HostedEmailEnv = {
+  BYPASS_EMAIL_VERIFICATION?: string;
+  LOOPS_API_KEY?: string;
+  LOOPS_TRANSACTIONAL_VERIFY_EMAIL_ID?: string;
+  LOOPS_TRANSACTIONAL_RESET_PASSWORD_ID?: string;
+};
+
+export function hasHostedEmailConfig(env: HostedEmailEnv): boolean {
+  if (env.BYPASS_EMAIL_VERIFICATION?.trim() === "true") {
+    return true;
+  }
+
+  return HOSTED_EMAIL_ENV_VARS.every((name) => env[name]?.trim());
+}

@@ -2,7 +2,7 @@
 
 Run OpenSEO locally with Docker.
 
-In Docker mode, OpenSEO uses `AUTH_MODE=local_noauth` (no auth checks, local admin user `admin@localhost`). Only expose it behind your own auth-protected reverse proxy, tunnel, or private network.
+In Docker mode, OpenSEO defaults to `AUTH_MODE=local_noauth` (no auth checks, local admin user `admin@localhost`). Only expose it behind your own auth-protected reverse proxy, tunnel, or private network — or set a real auth mode in `.env` (see [Serving it over a hostname](#serving-it-over-a-hostname)).
 
 The default `compose.yaml` uses the published GHCR image:
 
@@ -31,7 +31,7 @@ Optional env values:
 
 - `PORT` (defaults to `3001`)
 - `ALLOWED_HOST` (single reverse-proxy hostname to allow in Vite preview)
-- `AUTH_MODE=local_noauth` (already set in compose)
+- `AUTH_MODE` (defaults to `local_noauth`; set `hosted` or `cloudflare_access` in `.env` to run with real logins)
 - `OPEN_SEO_IMAGE` (defaults to `ghcr.io/every-app/open-seo:latest`)
 - `OPENROUTER_API_KEY` (required for AI features such as SAM; see [OpenRouter](https://openrouter.ai/settings/keys))
 
@@ -42,6 +42,24 @@ ALLOWED_HOST=yourdomain.com docker compose up -d
 ```
 
 You can also persist it in `.env`.
+
+### Serving it over a hostname
+
+`local_noauth` has no login: every visitor is resolved as the same admin user,
+with your projects and your instance-wide DataForSEO balance. Because
+`ALLOWED_HOST` is what makes the app answer to anything but localhost, the boot
+preflight refuses to start `local_noauth` once that host is set. Pick one:
+
+- **Give it real logins** — `AUTH_MODE=hosted` (email/password + Google, with
+  `ALLOWED_EMAILS` deciding who may register; see the hosted block in
+  `.env.example`) or `AUTH_MODE=cloudflare_access` (see
+  [`SELF_HOSTING_CLOUDFLARE.md`](./SELF_HOSTING_CLOUDFLARE.md)).
+- **Say the hostname is private** — `ALLOW_PUBLIC_NOAUTH=true`, for a LAN or
+  Tailscale name, or a proxy that already authenticates in front of OpenSEO.
+
+Confirm what a running instance is actually enforcing with
+`curl http://localhost:3001/api/health` — it reports `authMode` and the same
+checks the preflight ran.
 
 ## Telemetry
 
@@ -99,7 +117,7 @@ To confirm Docker Compose is using the expected environment variables:
 docker compose config
 ```
 
-Check that `AUTH_MODE=local_noauth`, and that `DATAFORSEO_API_KEY` is the base64
+Check that `AUTH_MODE` is the mode you intended, and that `DATAFORSEO_API_KEY` is the base64
 encoded value of your DataForSEO email and API password in this format:
 `email:password`.
 

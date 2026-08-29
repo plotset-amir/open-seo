@@ -19,6 +19,7 @@ import {
   getHostedTurnstileSecretKey,
   hasHostedTurnstileConfig,
 } from "@/lib/auth-turnstile";
+import { hasHostedEmailConfig } from "@/shared/selfhost-checks";
 import { getOrCreateDefaultHostedOrganization } from "@/server/auth/default-hosted-organization";
 import {
   sendHostedPasswordResetEmail,
@@ -280,29 +281,14 @@ function getGoogleSocialProviderConfig() {
   };
 }
 
-function hasHostedAuthEmailConfig() {
-  const loopsVars = [
-    "LOOPS_API_KEY",
-    "LOOPS_TRANSACTIONAL_VERIFY_EMAIL_ID",
-    "LOOPS_TRANSACTIONAL_RESET_PASSWORD_ID",
-  ];
-
-  return loopsVars.every((name) => {
-    const value: unknown = Reflect.get(env, name);
-    return typeof value === "string" && value.trim() !== "";
-  });
-}
-
 export function hasHostedAuthConfig() {
   try {
     getHostedBaseUrl();
     getHostedSecret();
     getGoogleSocialProviderConfig();
-    return (
-      hasHostedTurnstileConfig(env) &&
-      (Reflect.get(env, "BYPASS_EMAIL_VERIFICATION") === "true" ||
-        hasHostedAuthEmailConfig())
-    );
+    // Same rule the Docker preflight applies at boot, so a self-hoster never
+    // passes startup and then meets a 500 on the first sign-in.
+    return hasHostedTurnstileConfig(env) && hasHostedEmailConfig(env);
   } catch {
     return false;
   }
