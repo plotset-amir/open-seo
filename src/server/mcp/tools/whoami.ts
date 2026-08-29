@@ -5,7 +5,10 @@ import {
 } from "@/shared/billing";
 import { mcpResponse } from "@/server/mcp/formatters";
 import { type ToolContext } from "@/server/mcp/context";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
+import {
+  isBillingEnabledServer,
+  isHostedServerAuthMode,
+} from "@/server/lib/runtime-env";
 import { optionalMetaOutputSchema } from "@/server/mcp/output-schemas";
 import { z } from "zod";
 
@@ -40,9 +43,14 @@ export const whoamiTool = {
   },
   handler: async (_args: Record<string, never>, context: ToolContext) => {
     const auth = context.auth;
-    const isHosted = await isHostedServerAuthMode();
+    // "mode" is what the deployment is; credits are what it meters. A hosted
+    // instance can run with billing off, and then there is no balance to read.
+    const [isHosted, isMetered] = await Promise.all([
+      isHostedServerAuthMode(),
+      isBillingEnabledServer(),
+    ]);
     let creditsRemaining: number | null = null;
-    if (isHosted) {
+    if (isMetered) {
       const [base, topup] = await Promise.all([
         checkBalance(AUTUMN_SEO_DATA_BALANCE_FEATURE_ID, auth.organizationId),
         checkBalance(
@@ -57,7 +65,7 @@ export const whoamiTool = {
       `Mode: ${isHosted ? "hosted" : "self-hosted"}`,
       `Scopes: ${auth.scopes.length > 0 ? auth.scopes.join(", ") : "none"}`,
     ];
-    if (isHosted) {
+    if (isMetered) {
       lines.push(
         `Credits remaining: ${creditsRemaining != null ? creditsRemaining.toLocaleString() : "unknown"}`,
       );

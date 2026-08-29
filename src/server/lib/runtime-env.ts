@@ -1,4 +1,5 @@
 import { isHostedAuthMode } from "@/lib/auth-mode";
+import { isBillingEnabled } from "@/lib/billing-mode";
 
 let workersEnvPromise: Promise<Record<string, unknown> | null> | null = null;
 
@@ -39,6 +40,16 @@ export async function getRequiredEnvValue(name: string): Promise<string> {
 
 export async function isHostedServerAuthMode(): Promise<boolean> {
   return isHostedAuthMode(await getOptionalEnvValue("AUTH_MODE"));
+}
+
+// Ask this, not isHostedServerAuthMode, before anything that talks to Autumn:
+// hosted auth and Autumn metering are separate deployment choices (see
+// billing-mode.ts).
+export async function isBillingEnabledServer(): Promise<boolean> {
+  return isBillingEnabled({
+    AUTH_MODE: await getOptionalEnvValue("AUTH_MODE"),
+    BILLING_DISABLED: await getOptionalEnvValue("BILLING_DISABLED"),
+  });
 }
 
 async function getWorkersEnv(): Promise<Record<string, unknown> | null> {

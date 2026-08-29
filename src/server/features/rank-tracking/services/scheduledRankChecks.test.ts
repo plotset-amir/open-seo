@@ -44,7 +44,7 @@ const mocks = vi.hoisted(() => ({
       }) => Promise<BeginResult>
     >(),
   customerHasPaidPlan: vi.fn<(organizationId: string) => Promise<boolean>>(),
-  isHostedServerAuthMode: vi.fn<() => Promise<boolean>>(),
+  isBillingEnabledServer: vi.fn<() => Promise<boolean>>(),
 }));
 
 vi.mock("cloudflare:workers", () => ({ env: {} }));
@@ -65,7 +65,7 @@ vi.mock("@/server/billing/subscription", () => ({
   customerHasPaidPlan: mocks.customerHasPaidPlan,
 }));
 vi.mock("@/server/lib/runtime-env", () => ({
-  isHostedServerAuthMode: mocks.isHostedServerAuthMode,
+  isBillingEnabledServer: mocks.isBillingEnabledServer,
 }));
 
 // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- test double for the workflow binding
@@ -97,7 +97,7 @@ describe("runScheduledRankChecks", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.resetAllMocks();
-    mocks.isHostedServerAuthMode.mockResolvedValue(true);
+    mocks.isBillingEnabledServer.mockResolvedValue(true);
     mocks.customerHasPaidPlan.mockResolvedValue(true);
     mocks.claimDueConfig.mockResolvedValue(true);
     mocks.beginRankCheckRun.mockResolvedValue({ ok: true, runId: "run_1" });
@@ -370,7 +370,7 @@ describe("runScheduledRankChecks", () => {
   });
 
   it("makes no billing calls in self-hosted mode", async () => {
-    mocks.isHostedServerAuthMode.mockResolvedValue(false);
+    mocks.isBillingEnabledServer.mockResolvedValue(false);
 
     await runTick();
 

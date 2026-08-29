@@ -1,7 +1,7 @@
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import { beginRankCheckRun } from "@/server/features/rank-tracking/services/rankCheckRunGuards";
 import { customerHasPaidPlan } from "@/server/billing/subscription";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
+import { isBillingEnabledServer } from "@/server/lib/runtime-env";
 import {
   computeNextCheckAt,
   devicesCount,
@@ -39,7 +39,7 @@ export async function runScheduledRankChecks(env: Env) {
   const nowIso = new Date().toISOString();
   const dueConfigs =
     await RankTrackingRepository.getDueConfigsWithOrganization(nowIso);
-  const isHosted = await isHostedServerAuthMode();
+  const isMetered = await isBillingEnabledServer();
   const keywordCounts = await RankTrackingRepository.getKeywordCountsForConfigs(
     dueConfigs.map((config) => config.id),
   );
@@ -121,7 +121,7 @@ export async function runScheduledRankChecks(env: Env) {
       // Self-hosted deployments treat every config as paid and make no Autumn
       // calls at all.
       let hasPaidPlan = true;
-      if (isHosted) {
+      if (isMetered) {
         try {
           hasPaidPlan = await checkPaidPlan(config.organizationId);
         } catch (err) {

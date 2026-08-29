@@ -27,6 +27,7 @@ vi.mock("@/server/billing/autumn", () => ({
 
 vi.mock("@/server/lib/runtime-env", () => ({
   isHostedServerAuthMode: vi.fn(),
+  isBillingEnabledServer: vi.fn(),
 }));
 
 // subscription.ts now imports posthog (for trackUsageCreditSpend); stub it so

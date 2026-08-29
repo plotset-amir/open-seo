@@ -16,7 +16,7 @@ import {
   type DataforseoApiCallCost,
   type DataforseoApiResponse,
 } from "@/server/lib/dataforseo/envelope";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
+import { isBillingEnabledServer } from "@/server/lib/runtime-env";
 import { AppError } from "@/server/lib/errors";
 
 export { mapDataforseoPathToCreditFeature };
@@ -156,9 +156,9 @@ async function meterDataforseoCall<T>(
   execute: () => Promise<DataforseoApiResponse<T>>,
   creditFeature?: CreditFeature,
 ): Promise<T> {
-  const isHostedMode = await isHostedServerAuthMode();
+  const isMetered = await isBillingEnabledServer();
 
-  if (!isHostedMode) {
+  if (!isMetered) {
     const result = await execute();
     return result.data;
   }

@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   addKeywordsToConfig: vi.fn(),
   removeKeywordsFromConfig: vi.fn(),
   getKeywordCountForConfig: vi.fn(),
-  isHostedServerAuthMode: vi.fn(),
+  isBillingEnabledServer: vi.fn(),
   customerHasPaidPlan: vi.fn(),
   beginRankCheckRun: vi.fn(),
   createDataforseoClient: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock(
   () => ({ RankTrackingRepository: mocks }),
 );
 vi.mock("@/server/lib/runtime-env", () => ({
-  isHostedServerAuthMode: mocks.isHostedServerAuthMode,
+  isBillingEnabledServer: mocks.isBillingEnabledServer,
 }));
 vi.mock("@/server/billing/subscription", () => ({
   customerHasPaidPlan: mocks.customerHasPaidPlan,
@@ -210,7 +210,7 @@ describe("RankTrackingService management invariants", () => {
   });
 
   it("rejects a hosted unpaid run before keyword or workflow work", async () => {
-    mocks.isHostedServerAuthMode.mockResolvedValue(true);
+    mocks.isBillingEnabledServer.mockResolvedValue(true);
     mocks.customerHasPaidPlan.mockResolvedValue(false);
 
     await expect(
@@ -230,7 +230,7 @@ describe("RankTrackingService management invariants", () => {
       runId: "run_1",
     });
 
-    mocks.isHostedServerAuthMode.mockResolvedValue(true);
+    mocks.isBillingEnabledServer.mockResolvedValue(true);
     mocks.customerHasPaidPlan.mockResolvedValue(true);
     await expect(
       RankTrackingService.triggerCheck({
@@ -240,7 +240,7 @@ describe("RankTrackingService management invariants", () => {
       }),
     ).resolves.toEqual({ ok: true, runId: "run_1" });
 
-    mocks.isHostedServerAuthMode.mockResolvedValue(false);
+    mocks.isBillingEnabledServer.mockResolvedValue(false);
     // Isolate the second half of this test so it proves self-hosted mode skips
     // the hosted billing lookup.
     mocks.customerHasPaidPlan.mockClear();
@@ -288,7 +288,7 @@ describe("RankTrackingService management invariants", () => {
   });
 
   it("rejects hosted unpaid metrics refresh before provider work", async () => {
-    mocks.isHostedServerAuthMode.mockResolvedValue(true);
+    mocks.isBillingEnabledServer.mockResolvedValue(true);
     mocks.customerHasPaidPlan.mockResolvedValue(false);
 
     await expect(
@@ -303,7 +303,7 @@ describe("RankTrackingService management invariants", () => {
   });
 
   it("allows self-hosted metrics refresh without a plan check", async () => {
-    mocks.isHostedServerAuthMode.mockResolvedValue(false);
+    mocks.isBillingEnabledServer.mockResolvedValue(false);
     mocks.createDataforseoClient.mockReturnValue({});
     mocks.fetchKeywordMetricsForList.mockResolvedValue([]);
 

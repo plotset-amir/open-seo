@@ -1,5 +1,6 @@
 import { AUTH_MODES } from "@/lib/auth-mode";
 import { hasHostedTurnstileConfig } from "@/lib/auth-turnstile";
+import { isBillingDisabledValue } from "@/lib/billing-mode";
 import {
   hasHostedEmailConfig,
   HOSTED_EMAIL_ENV_VARS,
@@ -120,6 +121,25 @@ function checkAuthMode(env: EnvRecord, items: PreflightItem[]): void {
         level: "fail",
         message:
           "TURNSTILE_SITE_KEY is set without TURNSTILE_SECRET_KEY — the signup captcha would render but never be verified. Set the secret, or unset the site key to drop the captcha.",
+      });
+      return;
+    }
+
+    // Hosted also turns on Autumn metering: every DataForSEO call checks the
+    // org's credit balance first, and that read throws without a key — so the
+    // whole product fails at the credit check, not just billing. Make the
+    // operator choose, rather than inferring "no key" as "don't meter": on the
+    // SaaS a dropped secret must be loud, not a free unmetered instance.
+    if (
+      !get(env, "AUTUMN_SECRET_KEY") &&
+      !isBillingDisabledValue(get(env, "BILLING_DISABLED"))
+    ) {
+      items.push({
+        key: "auth",
+        name: "AUTH_MODE",
+        level: "fail",
+        message:
+          "hosted mode meters every DataForSEO call against Autumn credits: set AUTUMN_SECRET_KEY, or BILLING_DISABLED=true to run hosted logins with no credit ledger (a private instance spending its own DataForSEO balance).",
       });
       return;
     }

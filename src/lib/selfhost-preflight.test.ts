@@ -8,6 +8,8 @@ function hostedEnv() {
     BETTER_AUTH_SECRET: "x".repeat(40),
     GOOGLE_CLIENT_ID: "id",
     GOOGLE_CLIENT_SECRET: "secret",
+    BYPASS_EMAIL_VERIFICATION: "true",
+    BILLING_DISABLED: "true",
   };
 }
 
@@ -97,17 +99,17 @@ describe("runSelfhostPreflight", () => {
 
   it("fails hosted mode with no way to verify an address", () => {
     // Otherwise boot succeeds and every /api/auth request answers 500.
-    const result = runSelfhostPreflight({ ...hostedEnv() });
+    const result = runSelfhostPreflight({
+      ...hostedEnv(),
+      BYPASS_EMAIL_VERIFICATION: undefined,
+    });
 
     expect(result.failed).toBe(true);
     expect(itemFor(result, "AUTH_MODE")?.message).toContain("LOOPS_API_KEY");
   });
 
   it("warns that hosted mode without ALLOWED_EMAILS lets nobody sign up", () => {
-    const result = runSelfhostPreflight({
-      ...hostedEnv(),
-      BYPASS_EMAIL_VERIFICATION: "true",
-    });
+    const result = runSelfhostPreflight(hostedEnv());
 
     expect(result.failed).toBe(false);
     expect(itemFor(result, "AUTH_MODE")?.level).toBe("warn");
@@ -117,12 +119,26 @@ describe("runSelfhostPreflight", () => {
   it("passes hosted mode that is fully configured", () => {
     const result = runSelfhostPreflight({
       ...hostedEnv(),
-      BYPASS_EMAIL_VERIFICATION: "true",
       ALLOWED_EMAILS: "owner@example.com",
     });
 
     expect(result.failed).toBe(false);
     expect(itemFor(result, "AUTH_MODE")?.level).toBe("ok");
+  });
+
+  it("fails hosted mode that can neither meter nor say it won't", () => {
+    // Without a key every DataForSEO call throws at the credit check, so this
+    // is the whole product failing, not just billing.
+    const result = runSelfhostPreflight({
+      ...hostedEnv(),
+      ALLOWED_EMAILS: "owner@example.com",
+      BILLING_DISABLED: undefined,
+    });
+
+    expect(result.failed).toBe(true);
+    expect(itemFor(result, "AUTH_MODE")?.message).toContain(
+      "AUTUMN_SECRET_KEY",
+    );
   });
 
   it("fails a login-less instance that is served over a hostname", () => {

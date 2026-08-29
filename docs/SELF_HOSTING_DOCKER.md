@@ -68,7 +68,10 @@ preflight refuses to start `local_noauth` once that host is set. Pick one:
 - **Give it real logins** — `AUTH_MODE=hosted` (email/password + Google, with
   `ALLOWED_EMAILS` deciding who may register; see the hosted block in
   `.env.example`) or `AUTH_MODE=cloudflare_access` (see
-  [`SELF_HOSTING_CLOUDFLARE.md`](./SELF_HOSTING_CLOUDFLARE.md)).
+  [`SELF_HOSTING_CLOUDFLARE.md`](./SELF_HOSTING_CLOUDFLARE.md)). Hosted also
+  turns on Autumn credit metering in front of every DataForSEO call — set
+  `AUTUMN_SECRET_KEY`, or `BILLING_DISABLED=true` to keep the logins and spend
+  your own DataForSEO balance with no ledger.
 - **Say the hostname is private** — `ALLOW_PUBLIC_NOAUTH=true`, for a LAN or
   Tailscale name, or a proxy that already authenticates in front of OpenSEO.
 

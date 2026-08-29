@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 import { Search } from "lucide-react";
-import { isHostedClientAuthMode } from "@/lib/auth-mode";
+import { isBillingEnabledClientMode } from "@/lib/billing-mode";
 import { applyBillingMarkupUsd } from "@/shared/billing";
 import { ResearchScopeSelect } from "@/client/components/ResearchScopeSelect";
 import type { ResearchScope } from "@/shared/researchScope";
@@ -37,7 +37,7 @@ const BRAND_LOOKUP_COMPETITOR_RAW_COST_USD = 0.2;
 // Hosted customers are billed the marked-up USD; self-hosted users pay
 // DataForSEO directly at the raw rate.
 const markup = (rawUsd: number) =>
-  isHostedClientAuthMode() ? applyBillingMarkupUsd(rawUsd) : rawUsd;
+  isBillingEnabledClientMode() ? applyBillingMarkupUsd(rawUsd) : rawUsd;
 
 const BRAND_LOOKUP_DISPLAYED_COST_USD = markup(BRAND_LOOKUP_RAW_COST_USD);
 const BRAND_LOOKUP_COMPETITOR_DISPLAYED_COST_USD = markup(

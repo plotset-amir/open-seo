@@ -24,6 +24,9 @@ services:
       # the hostname is private, otherwise the boot preflight refuses to start a
       # login-less instance that is served over a hostname.
       - ALLOW_PUBLIC_NOAUTH=${ALLOW_PUBLIC_NOAUTH:-}
+      # Only meaningful with AUTH_MODE=hosted: run real logins without the
+      # Autumn credit ledger, for an instance spending its own DataForSEO key.
+      - BILLING_DISABLED=${BILLING_DISABLED:-}
       - OPENSEO_TELEMETRY_DISABLED=${OPENSEO_TELEMETRY_DISABLED:-}
       - DO_NOT_TRACK=${DO_NOT_TRACK:-}
       - DATAFORSEO_API_KEY=${DATAFORSEO_API_KEY}

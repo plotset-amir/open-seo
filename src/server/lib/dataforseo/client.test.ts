@@ -14,12 +14,12 @@ interface TrackCallArg {
   properties?: { balanceFeatureId: string };
 }
 
-const { checkMock, trackMock, getOrCreateMock, isHostedServerAuthModeMock } =
+const { checkMock, trackMock, getOrCreateMock, isBillingEnabledServerMock } =
   vi.hoisted(() => ({
     checkMock: vi.fn(),
     trackMock: vi.fn<(arg: TrackCallArg) => void>(),
     getOrCreateMock: vi.fn(),
-    isHostedServerAuthModeMock: vi.fn(),
+    isBillingEnabledServerMock: vi.fn(),
   }));
 
 vi.mock("cloudflare:workers", () => ({
@@ -46,7 +46,7 @@ vi.mock("@/server/billing/subscription", async (importOriginal) => {
 });
 
 vi.mock("@/server/lib/runtime-env", () => ({
-  isHostedServerAuthMode: isHostedServerAuthModeMock,
+  isBillingEnabledServer: isBillingEnabledServerMock,
 }));
 
 vi.mock("@/server/lib/posthog", () => ({
@@ -110,8 +110,8 @@ const backlinksInput = {
   target: "example.com",
 };
 
-function setupHostedMode() {
-  isHostedServerAuthModeMock.mockResolvedValue(true);
+function setupMeteredMode() {
+  isBillingEnabledServerMock.mockResolvedValue(true);
   getOrCreateMock.mockResolvedValue({ id: "org_123" });
 }
 
@@ -139,8 +139,8 @@ describe("meterDataforseoCall with split balances", () => {
     vi.clearAllMocks();
   });
 
-  it("skips billing in non-hosted mode", async () => {
-    isHostedServerAuthModeMock.mockResolvedValue(false);
+  it("skips billing when metering is off", async () => {
+    isBillingEnabledServerMock.mockResolvedValue(false);
     mockDataforseoResult(0.05);
 
     const client = createDataforseoClient(billingCustomer);
@@ -152,7 +152,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("checks both monthly and topup balances in parallel", async () => {
-    setupHostedMode();
+    setupMeteredMode();
     mockBalances(5000, 3000);
     mockDataforseoResult(0.05);
 
@@ -176,7 +176,7 @@ describe("meterDataforseoCall with split balances", () => {
   );
 
   it("deducts entirely from monthly when monthly has enough", async () => {
-    setupHostedMode();
+    setupMeteredMode();
     mockBalances(5000, 3000);
     mockDataforseoResult(RAW_COST);
 
@@ -195,7 +195,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("deducts entirely from topup when monthly is empty", async () => {
-    setupHostedMode();
+    setupMeteredMode();
     mockBalances(0, 5000);
     mockDataforseoResult(RAW_COST);
 
@@ -214,7 +214,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("splits deduction across monthly and topup when monthly is partially sufficient", async () => {
-    setupHostedMode();
+    setupMeteredMode();
     const monthlyAvailable = 30;
     mockBalances(monthlyAvailable, 5000);
     mockDataforseoResult(RAW_COST);
@@ -242,7 +242,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("throws INSUFFICIENT_CREDITS when both balances are exactly zero", async () => {
-    setupHostedMode();
+    setupMeteredMode();
     mockBalances(0, 0);
     mockDataforseoResult(0.05);
 
@@ -255,7 +255,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("meters charged DataForSEO task errors before rethrowing", async () => {
-    setupHostedMode();
+    setupMeteredMode();
     mockBalances(5000, 3000);
     vi.mocked(fetchBacklinksSummary).mockRejectedValue(
       new DataforseoChargedTaskError("DataForSEO task failed", {
@@ -281,7 +281,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("skips the charge for an unbilled invalid-field failure and rethrows VALIDATION_ERROR", async () => {
-    setupHostedMode();
+    setupMeteredMode();
     mockBalances(5000, 3000);
     vi.mocked(fetchBacklinksSummary).mockRejectedValue(
       new DataforseoChargedTaskError(
@@ -300,7 +300,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("still meters an invalid-field failure that DataForSEO actually billed", async () => {
-    setupHostedMode();
+    setupMeteredMode();
     mockBalances(5000, 3000);
     vi.mocked(fetchBacklinksSummary).mockRejectedValue(
       new DataforseoChargedTaskError(
@@ -327,7 +327,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("includes balanceFeatureId in track properties", async () => {
-    setupHostedMode();
+    setupMeteredMode();
     mockBalances(30, 5000);
     mockDataforseoResult(0.05);
 

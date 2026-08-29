@@ -39,6 +39,9 @@ declare namespace Cloudflare {
     LOOPS_API_KEY?: string;
     LOOPS_TRANSACTIONAL_VERIFY_EMAIL_ID?: string;
     LOOPS_TRANSACTIONAL_RESET_PASSWORD_ID?: string;
+    // "true" runs hosted auth without Autumn metering (see billing-mode.ts) —
+    // a private instance spending its own DATAFORSEO_API_KEY.
+    BILLING_DISABLED?: string;
     AUTUMN_SECRET_KEY?: string;
     AUTUMN_WEBHOOK_SECRET?: string;
     // HMAC secret for the operator-only GDPR storage-erasure endpoint.
@@ -63,6 +66,7 @@ interface ImportMetaEnv {
   readonly AUTH_MODE?: "cloudflare_access" | "local_noauth" | "hosted";
   readonly DATABASE_PROVIDER?: "d1" | "postgres";
   readonly BYPASS_EMAIL_VERIFICATION?: string;
+  readonly BILLING_DISABLED?: string;
   readonly POSTHOG_PUBLIC_KEY?: string;
   readonly POSTHOG_HOST?: string;
   readonly TURNSTILE_SITE_KEY?: string;

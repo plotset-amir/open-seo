@@ -7,7 +7,7 @@ import {
 import { AppError } from "@/server/lib/errors";
 import {
   getRequiredEnvValue,
-  isHostedServerAuthMode,
+  isBillingEnabledServer,
 } from "@/server/lib/runtime-env";
 import { requireAuthenticatedContext } from "@/serverFunctions/middleware";
 
@@ -57,7 +57,7 @@ export const getBillingUsageEvents = createServerFn({ method: "POST" })
   .middleware(requireAuthenticatedContext)
   .validator(billingUsageRangeSchema)
   .handler(async ({ data, context }) => {
-    if (!(await isHostedServerAuthMode())) {
+    if (!(await isBillingEnabledServer())) {
       return [];
     }
 

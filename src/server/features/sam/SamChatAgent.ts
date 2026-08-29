@@ -27,7 +27,7 @@ import { buildSamSystemPrompt } from "@/server/features/sam/samSystemPrompt";
 import { buildChatAgentModel } from "@/server/lib/openrouter";
 import {
   getEnvValueSync,
-  isHostedServerAuthMode,
+  isBillingEnabledServer,
 } from "@/server/lib/runtime-env";
 import {
   checkUsageCreditsDepleted,
@@ -267,7 +267,7 @@ export class SamChatAgent extends Think {
       // confirmed against a second Autumn read path before refusing — a
       // stale check reading here once locked a paying customer out of chat.
       const { organizationId } = ctx.project;
-      if (await isHostedServerAuthMode()) {
+      if (await isBillingEnabledServer()) {
         const { depleted, monthlyRemaining } = await checkUsageCreditsDepleted({
           userId: ctx.row.userId,
           userEmail: ctx.userEmail,

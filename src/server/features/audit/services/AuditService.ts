@@ -24,7 +24,7 @@ import {
   resolveStartUrlRedirects,
 } from "@/server/lib/audit/url-policy";
 import { reconcileRunningAudit } from "@/server/features/audit/services/auditReconciler";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
+import { isBillingEnabledServer } from "@/server/lib/runtime-env";
 
 // Plan-tier limits are the abuse bound in hosted mode: free accounts get one
 // small audit at a time, paid keeps the full limits, and customers with no
@@ -32,7 +32,7 @@ import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 async function resolveAuditLimitTier(
   organizationId: string,
 ): Promise<AuditLimitTier> {
-  if (!(await isHostedServerAuthMode())) return "self_hosted";
+  if (!(await isBillingEnabledServer())) return "self_hosted";
   const [hasManagedAccess, hasPaidPlan] = await Promise.all([
     customerHasManagedAccess(organizationId),
     customerHasPaidPlan(organizationId),
