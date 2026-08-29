@@ -1,0 +1,18 @@
+# Run OpenSEO from this checkout instead of the published image.
+#
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+#
+# compose.yaml pins `image: ghcr.io/every-app/open-seo:latest`, so a fork's own
+# code never reaches the container no matter what is committed — an
+# instance-specific auth gate (ALLOWED_EMAILS) or any local patch silently does
+# nothing while upstream's build serves. Layer this override to build and run
+# what is actually checked out here.
+services:
+  open-seo:
+    build:
+      context: .
+      dockerfile: Dockerfile.selfhost
+    # Tagged apart from the published image so `docker images` never leaves it
+    # ambiguous which one a container came from.
+    image: open-seo:local
+    pull_policy: build

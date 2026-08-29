@@ -43,6 +43,21 @@ ALLOWED_HOST=yourdomain.com docker compose up -d
 
 You can also persist it in `.env`.
 
+### Running your own build
+
+`compose.yaml` pins the published image, so a fork's own commits never reach the
+container — a local patch or an instance-specific auth gate silently does
+nothing while upstream's build serves. Layer the build override to run what is
+actually checked out:
+
+```bash
+docker compose -f compose.yaml -f compose.build.yaml up -d --build
+```
+
+It builds `Dockerfile.selfhost` from this directory and tags it `open-seo:local`,
+so `docker images` never leaves it ambiguous which build a container came from.
+Re-run the same command after every `git pull` on your fork.
+
 ### Serving it over a hostname
 
 `local_noauth` has no login: every visitor is resolved as the same admin user,
